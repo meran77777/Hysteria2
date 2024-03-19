@@ -6,7 +6,7 @@ print_with_delay() {
     delay="$2"
     for ((i = 0; i < ${#text}; i++)); do
         echo -n "${text:$i:1}"
-        sleep "$delay"
+        sleep $delay
     done
     echo
 }
@@ -72,17 +72,17 @@ if [ -d "/root/hysteria" ]; then
             sed -i "s/listen: :${current_port}/listen: :${new_port}/" config.yaml
             sed -i "0,/password: ${current_password}/s//password: ${new_password}/" config.yaml
 
+            
             # Kill the existing hysteria process, reload systemd and restart the hysteria service
             pkill -f 'hysteria*'
             systemctl daemon-reload
             systemctl start hysteria
 
-            # Print client configs if possible
-            if command -v curl &> /dev/null; then
-                PUBLIC_IP=$(curl -s https://api.ipify.org)
+            # Print client configs
+            PUBLIC_IP=$(curl -s https://api.ipify.org)
 
-                echo "v2rayN client config:"
-                v2rayN_config="server: $PUBLIC_IP:$new_port
+            echo "v2rayN client config:"
+            v2rayN_config="server: $PUBLIC_IP:$new_port
 auth: $new_password
 transport:
   type: udp
@@ -106,21 +106,20 @@ socks5:
   listen: 127.0.0.1:10808
 http:
   listen: 127.0.0.1:10809"
-                echo "$v2rayN_config"
-                echo ""
+            echo "$v2rayN_config"
+            echo ""
 
-                echo "NekoBox/NekoRay URL:"
-                nekobox_url="hysteria2://$new_password@$PUBLIC_IP:$new_port/?insecure=1&sni=bing.com"
-                echo "$nekobox_url"
-                echo ""
-            fi
+            echo "NekoBox/NekoRay URL:"
+            nekobox_url="hysteria2://$new_password@$PUBLIC_IP:$new_port/?insecure=1&sni=bing.com"
+            echo "$nekobox_url"
+            echo ""
             exit 0
             ;;
         3)
             # Uninstall
             rm -rf /root/hysteria
             systemctl stop hysteria
-            pkill -f 'hysteria*'
+            pkill -f 'hysteria'
             systemctl disable hysteria > /dev/null 2>&1
             rm /etc/systemd/system/hysteria.service
             echo "Hysteria uninstalled successfully!"
@@ -161,6 +160,7 @@ case "$OS" in
   # Add more OS checks if needed
   *) echo "Unsupported OS"; exit 1;;
 esac
+
 
 # Step 2: Download the binary
 mkdir -p /root/hysteria
@@ -251,3 +251,42 @@ EOL
 systemctl daemon-reload
 systemctl enable hysteria > /dev/null 2>&1
 systemctl start hysteria
+
+# Step 7: Generate and print client config files
+PUBLIC_IP=$(curl -s https://api.ipify.org)
+echo ""
+echo "v2rayN client config:"
+echo ""
+v2rayN_config="server: $PUBLIC_IP:$port
+auth: $password
+transport:
+  type: udp
+tls:
+  sni: bing.com
+  insecure: true
+bandwidth:
+  up: 100 mbps
+  down: 100 mbps
+quic:
+  initStreamReceiveWindow: 8388608
+  maxStreamReceiveWindow: 8388608
+  initConnReceiveWindow: 20971520
+  maxConnReceiveWindow: 20971520
+  maxIdleTimeout: 60s
+  keepAlivePeriod: 60s
+  disablePathMTUDiscovery: false
+fastOpen: true
+lazy: true
+socks5:
+  listen: 127.0.0.1:10808
+http:
+  listen: 127.0.0.1:10809"
+echo ""
+echo "$v2rayN_config"
+echo ""
+echo "NekoBox/NekoRay URL:"
+echo ""
+nekobox_url="hysteria2://$password@$PUBLIC_IP:$port/?insecure=1&sni=bing.com"
+echo ""
+echo "$nekobox_url"
+echo ""
