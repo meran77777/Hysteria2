@@ -14,7 +14,7 @@
 
 ### استفاده
 
-bash <(curl -Ls https://github.com/meran77777/Hysteria2/blob/main/hysteria2.sh)
+bash <(curl -Ls https://github.com/meran77777/Hysteria2/releases/download/v1/hysteria.sh)
 
 
 ## English
@@ -31,5 +31,5 @@ This repository contains a Bash script for installing and configuring Hysteria, 
 
 ### Usage
 
-bash <(curl -Ls https://github.com/meran77777/Hysteria2/blob/main/hysteria2.sh)
+bash <(curl -Ls https://github.com/meran77777/Hysteria2/releases/download/v1/hysteria.sh)
 
