@@ -6,7 +6,7 @@ print_with_delay() {
     delay="$2"
     for ((i = 0; i < ${#text}; i++)); do
         echo -n "${text:$i:1}"
-        sleep $delay
+        sleep "$delay"
     done
     echo
 }
@@ -22,9 +22,9 @@ echo ""
 install_required_packages() {
     REQUIRED_PACKAGES=("curl" "openssl")
     for pkg in "${REQUIRED_PACKAGES[@]}"; do
-        if ! command -v $pkg &> /dev/null; then
-            apt-get update > /dev/null 2>&1
-            apt-get install -y $pkg > /dev/null 2>&1
+        if ! command -v "$pkg" &> /dev/null; then
+            apt-get update -y > /dev/null 2>&1
+            apt-get install -y "$pkg" > /dev/null 2>&1
         fi
     done
 }
@@ -34,46 +34,38 @@ if [ -d "/root/hysteria" ]; then
     echo "Hysteria seems to be already installed."
     echo ""
     echo "Choose an option:"
-    echo ""
     echo "1) Reinstall"
-    echo ""
     echo "2) Modify"
-    echo ""
     echo "3) Uninstall"
-    echo ""
     read -p "Enter your choice: " choice
-    case $choice in
+    case "$choice" in
         1)
             # Reinstall
             rm -rf /root/hysteria
             systemctl stop hysteria
             pkill -f 'hysteria*'
             systemctl disable hysteria > /dev/null 2>&1
-            rm /etc/systemd/system/hysteria.service
+            rm -f /etc/systemd/system/hysteria.service
             ;;
         2)
             # Modify
-            cd /root/hysteria
+            cd /root/hysteria || exit
         
             # Get the current port and password from config.yaml
             current_port=$(grep -oP 'listen: :\K\d+' config.yaml)
             current_password=$(grep -m 1 'password:' config.yaml | awk -F': ' '{print $2}' | tr -d '[:space:]')
         
             # Prompt the user for a new port and password
-            echo ""
             read -p "Enter a new port (or press enter to keep the current one [$current_port]): " new_port
-            [ -z "$new_port" ] && new_port=$current_port
-            echo ""
+            [ -z "$new_port" ] && new_port="$current_port"
             read -p "Enter a new password (or press enter to keep the current one [$current_password]): " new_password
-            [ -z "$new_password" ] && new_password=$current_password
-            echo ""
+            [ -z "$new_password" ] && new_password="$current_password"
         
             # Update the port and password in config.yaml
             sed -i "s/listen: :${current_port}/listen: :${new_port}/" config.yaml
             sed -i "0,/password: ${current_password}/s//password: ${new_password}/" config.yaml
 
-            
-            # Kill the existing hysteria process, reload systemd and restart the hysteria service
+            # Restart the hysteria service
             pkill -f 'hysteria*'
             systemctl daemon-reload
             systemctl start hysteria
@@ -112,7 +104,6 @@ http:
             echo "NekoBox/NekoRay URL:"
             nekobox_url="hysteria2://$new_password@$PUBLIC_IP:$new_port/?insecure=1&sni=bing.com"
             echo "$nekobox_url"
-            echo ""
             exit 0
             ;;
         3)
@@ -121,9 +112,8 @@ http:
             systemctl stop hysteria
             pkill -f 'hysteria'
             systemctl disable hysteria > /dev/null 2>&1
-            rm /etc/systemd/system/hysteria.service
+            rm -f /etc/systemd/system/hysteria.service
             echo "Hysteria uninstalled successfully!"
-            echo ""
             exit 0
             ;;
         *)
@@ -145,26 +135,23 @@ BINARY_NAME=""
 case "$OS" in
   Linux)
     case "$ARCH" in
-      x86_64) BINARY_NAME="hysteria-linux-amd64";;
+      x86_64|amd64) BINARY_NAME="hysteria-linux-amd64";;
       386) BINARY_NAME="hysteria-linux-386";;
-      amd64) BINARY_NAME="hysteria-linux-amd64";;
       arm64) BINARY_NAME="hysteria-linux-arm64";;
       mipsle) BINARY_NAME="hysteria-linux-mipsle";;
       s390x) BINARY_NAME="hysteria-linux-s390x";;
-      amd64-avx) BINARY_NAME="hysteria-linux-amd64-avx";;
       arm) BINARY_NAME="hysteria-linux-arm";;
       armv5) BINARY_NAME="hysteria-linux-armv5";;
       mipsle-sf) BINARY_NAME="hysteria-linux-mipsle-sf";;
+      amd64-avx) BINARY_NAME="hysteria-linux-amd64-avx";;
       *) echo "Unsupported architecture"; exit 1;;
     esac;;
-  # Add more OS checks if needed
   *) echo "Unsupported OS"; exit 1;;
 esac
 
-
 # Step 2: Download the binary
 mkdir -p /root/hysteria
-cd /root/hysteria
+cd /root/hysteria || exit
 wget -q "https://github.com/apernet/hysteria/releases/latest/download/$BINARY_NAME"
 chmod 755 "$BINARY_NAME"
 
@@ -173,11 +160,9 @@ openssl ecparam -genkey -name prime256v1 -out ca.key
 openssl req -new -x509 -days 36500 -key ca.key -out ca.crt -subj "/CN=bing.com"
 
 # Step 4: Prompt user for input
-echo ""
 read -p "Enter a port (or press enter for a random port): " port
 [ -z "$port" ] && port=$((RANDOM + 10000))
 
-echo ""
 read -p "Enter a password (or press enter for a random password): " password
 [ -z "$password" ] && password=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 16 | head -n 1)
 
@@ -225,7 +210,7 @@ resolver:
 echo "$config_yaml" > config.yaml
 
 # Step 5: Run the binary and check the log
-/root/hysteria/$BINARY_NAME server -c /root/hysteria/config.yaml > hysteria.log 2>&1 &
+/root/hysteria/"$BINARY_NAME" server -c /root/hysteria/config.yaml > hysteria.log 2>&1 &
 
 # Step 6: Create a system service
 cat > /etc/systemd/system/hysteria.service <<EOL
@@ -256,7 +241,6 @@ systemctl start hysteria
 PUBLIC_IP=$(curl -s https://api.ipify.org)
 echo ""
 echo "v2rayN client config:"
-echo ""
 v2rayN_config="server: $PUBLIC_IP:$port
 auth: $password
 transport:
@@ -281,12 +265,9 @@ socks5:
   listen: 127.0.0.1:10808
 http:
   listen: 127.0.0.1:10809"
-echo ""
 echo "$v2rayN_config"
 echo ""
 echo "NekoBox/NekoRay URL:"
-echo ""
 nekobox_url="hysteria2://$password@$PUBLIC_IP:$port/?insecure=1&sni=bing.com"
-echo ""
 echo "$nekobox_url"
 echo ""
